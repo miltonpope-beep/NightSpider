@@ -29,7 +29,7 @@ body{height:100%;margin:0;background:radial-gradient(ellipse at 50% 35%,var(--fe
 #board.still .card{transition:none!important}
 
 .slot{position:absolute;width:var(--cw);height:var(--ch);border-radius:calc(var(--cw)*.08);border:1px dashed var(--line)}
-.card{position:absolute;left:0;top:0;width:var(--cw);height:var(--ch);border-radius:calc(var(--cw)*.08);background:var(--paper);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.5),inset 0 0 0 1px rgba(0,0,0,.12);transition:left .22s ease,top .22s ease,box-shadow .2s,filter .2s;overflow:hidden}
+.card{position:absolute;left:0;top:0;width:var(--cw);height:var(--ch);border-radius:calc(var(--cw)*.08);background:var(--paper);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.5),inset 0 0 0 1px rgba(0,0,0,.12);transition:left .44s ease,top .44s ease,box-shadow .2s,filter .2s;overflow:hidden}
 .card .r{position:absolute;top:calc(var(--cw)*.015);left:calc(var(--cw)*.05);font:700 calc(var(--cw)*.28)/1 var(--f-rank);letter-spacing:-.03em}
 .card .s{position:absolute;top:calc(var(--cw)*.03);right:calc(var(--cw)*.05);font-size:calc(var(--cw)*.21);line-height:1}
 .card .pip{position:absolute;left:50%;top:60%;transform:translate(-50%,-50%);font-size:calc(var(--cw)*.6);line-height:1;opacity:.8}
@@ -67,7 +67,7 @@ body{height:100%;margin:0;background:radial-gradient(ellipse at 50% 35%,var(--fe
     <div class="row">
       <button class="btn" id="bUndo" type="button">Undo</button>
       <button class="btn" id="bHint" type="button">Hint</button>
-      <button class="btn" id="bRew" type="button">Rewind</button>
+      <button class="btn" id="bRew" type="button" style="margin-left:150px">Rewind</button>
       <button class="btn" id="bNew" type="button">New</button>
       <button class="btn" id="bMenu" type="button" aria-label="Settings">⋯</button>
     </div>
@@ -113,7 +113,7 @@ function canDrop(r,t){const a=S.cols[t];return !a.length||rk(top(a))===r+1}
 function doMove(f,i,t){
   S.hist.push(snap());
   const seq=S.cols[f].splice(i);S.cols[t].push(...seq);flipTop(f);S.moves++;
-  render();settle(240);
+  render();settle(480);
 }
 function settle(wait){
   const ready=()=>S.cols.some((a,c)=>a.length>=13&&runLen(c)>=13&&rk(top(a))===1);
@@ -122,13 +122,13 @@ function settle(wait){
   setTimeout(()=>{
     S.cols.forEach((a,c)=>{if(a.length>=13&&runLen(c)>=13&&rk(top(a))===1){S.found.push(a.splice(a.length-13));flipTop(c)}});
     render();
-    if(S.found.length===8){S.won=true;S.hist=[];save();setTimeout(winFly,500);return}
+    if(S.found.length===8){S.won=true;S.hist=[];save();setTimeout(winFly,900);return}
     busy=false;save();
   },wait);
 }
 function winFly(){
   render({fly:true});
-  setTimeout(()=>{busy=false;showWin()},104*18+380);
+  setTimeout(()=>{busy=false;showWin()},104*36+760);
 }
 function showWin(){
   document.getElementById('winMsg').textContent='Won in '+S.moves+' moves'+(S.resets?' · rewound '+S.resets+(S.resets===1?' time':' times'):'');
@@ -142,9 +142,9 @@ function deal(){
   if(empty.length){empty.forEach(c=>nope(slots[c]));toast('Fill the empty columns before dealing');return}
   S.hist.push(snap());
   const delays={};
-  for(let c=0;c<10;c++){const n=S.stock.pop()|1;S.cols[c].push(n);delays[cid(n)]=c*45}
+  for(let c=0;c<10;c++){const n=S.stock.pop()|1;S.cols[c].push(n);delays[cid(n)]=c*90}
   S.moves++;
-  render({delays});settle(700);
+  render({delays});settle(1400);
 }
 function undo(){
   if(busy||S.won||!S.hist.length)return;
@@ -165,8 +165,8 @@ function dealAnim(){
   // gather everything at the stock, then deal out
   board.classList.add('still');render({gather:true});void board.offsetWidth;board.classList.remove('still');
   const delays={};let k=0;
-  for(let r=0;r<6;r++)for(let c=0;c<10;c++){const a=S.cols[c];if(r<a.length)delays[cid(a[r])]=(k++)*14}
-  busy=true;render({delays});setTimeout(()=>{busy=false},54*14+300);
+  for(let r=0;r<6;r++)for(let c=0;c<10;c++){const a=S.cols[c];if(r<a.length)delays[cid(a[r])]=(k++)*28}
+  busy=true;render({delays});setTimeout(()=>{busy=false},54*28+600);
 }
 
 function tapCard(c,i){
@@ -199,7 +199,9 @@ function hints(){
   return list;
 }
 function clearGlow(){els.forEach(e=>e.classList.remove('glow'))}
-function stopHints(){if(hintTimer){clearTimeout(hintTimer);hintTimer=null}clearGlow();document.getElementById('bHint').classList.remove('on')}
+let hintMoved=false;
+function snapBack(){board.classList.add('still');render();void board.offsetWidth;board.classList.remove('still')}
+function stopHints(){if(hintTimer){clearTimeout(hintTimer);hintTimer=null}if(hintMoved){hintMoved=false;snapBack()}clearGlow();document.getElementById('bHint').classList.remove('on')}
 function showHints(){
   if(hintTimer){stopHints();return}
   if(busy||S.won)return;
@@ -211,9 +213,19 @@ function showHints(){
     clearGlow();
     if(k>=list.length){stopHints();return}
     const h=list[k++];
-    S.cols[h.f].slice(h.i).forEach(n=>els[cid(n)].classList.add('glow'));
-    els[cid(top(S.cols[h.t]))].classList.add('glow');
-    hintTimer=setTimeout(()=>{clearGlow();hintTimer=setTimeout(step,200)},850);
+    const cards=S.cols[h.f].slice(h.i).map(n=>els[cid(n)]);
+    const tgt=els[cid(top(S.cols[h.t]))];
+    cards.forEach(e=>e.classList.add('glow'));tgt.classList.add('glow');
+    // show the play: slide the card(s) onto the target, pause, then pop back home
+    hintTimer=setTimeout(()=>{
+      hintMoved=true;
+      const tx=parseFloat(tgt.style.left),ty=parseFloat(tgt.style.top);
+      cards.forEach((e,j)=>{e.style.transitionDelay='0ms';e.style.zIndex=3000+j;e.style.left=tx+'px';e.style.top=(ty+L.ch*.25*(j+1))+'px'});
+      hintTimer=setTimeout(()=>{
+        hintMoved=false;snapBack();clearGlow();
+        hintTimer=setTimeout(step,500);
+      },440+350);
+    },250);
   };
   step();
 }
@@ -287,9 +299,9 @@ function render(opt={}){
   S.found.forEach((arr,s)=>{
     arr.forEach((n,k)=>{
       if(opt.fly||opt.gather){
-        const e=els[cid(n)];e.style.transitionDuration='.32s';
+        const e=els[cid(n)];e.style.transitionDuration='.64s';
         setCard(n,stockEdge,0,20+s*13+k,null,true);
-        if(opt.fly)e.style.transitionDelay=((s*13+k)*18)+'ms';
+        if(opt.fly)e.style.transitionDelay=((s*13+k)*36)+'ms';
       }else setCard(n,foundX(s),0,10+s*20+(13-k),{w:'found'});
     });
   });
