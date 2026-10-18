@@ -57,7 +57,7 @@ body{height:100%;margin:0;background:radial-gradient(ellipse at 50% 35%,var(--fe
 #win p{margin:0;font-size:14px}
 @media (prefers-reduced-motion:reduce){.card{transition-duration:.05s}}
 </style>
-<style>html,body{margin:0}</style>
+<style>html,body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
 
@@ -378,6 +378,20 @@ if(hot&&hot.ready)hot.ready(start);else start((hot&&hot.data)||{});
 })();
 </script>
 
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+<script>
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+// If opened in a normal browser tab, go full screen and landscape on the first touch.
+(function(){
+  const installed=matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches;
+  if(installed||!document.fullscreenEnabled)return;
+  const go=()=>{
+    if(document.fullscreenElement)return;
+    document.documentElement.requestFullscreen({navigationUI:'hide'}).then(()=>{
+      if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(()=>{});
+    }).catch(()=>{});
+  };
+  document.addEventListener('pointerup',go);
+})();
+</script>
 </body>
 </html>
