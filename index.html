@@ -49,7 +49,7 @@ body{height:100%;margin:0;background:radial-gradient(ellipse at 50% 35%,var(--fe
 .btn.on{color:var(--glow)}
 .stat{font:500 12px/1 var(--f-ui);font-variant-numeric:tabular-nums;letter-spacing:.06em;text-transform:uppercase;opacity:.8;display:flex;gap:10px;align-items:center}
 #rew{color:var(--glow)}
-#menu{position:absolute;bottom:50px;right:0;background:#18241f;border:1px solid var(--line);border-radius:10px;padding:12px 14px;z-index:5000;font-size:14px;color:var(--muted)}
+#menu{position:absolute;bottom:50px;right:0;display:flex;flex-direction:column;gap:12px;background:#18241f;border:1px solid var(--line);border-radius:10px;padding:12px 14px;z-index:5000;font-size:14px;color:var(--muted)}
 #menu label{display:flex;gap:10px;align-items:center;cursor:pointer}
 #toast{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);background:rgba(10,18,15,.9);border:1px solid var(--line);color:var(--muted);padding:10px 16px;border-radius:10px;font-size:14px;z-index:6000;pointer-events:none;transition:opacity .3s}
 #win{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);text-align:center;z-index:6000;display:flex;flex-direction:column;gap:12px;align-items:center}
@@ -70,10 +70,11 @@ body{height:100%;margin:0;background:radial-gradient(ellipse at 50% 35%,var(--fe
       <button class="btn" id="bRew" type="button" style="margin-left:150px">Rewind</button>
       <button class="btn" id="bNew" type="button">New</button>
       <button class="btn" id="bMenu" type="button" aria-label="Settings">⋯</button>
+      <button class="btn warn" id="bDone" type="button" hidden>Complete</button>
     </div>
     <div class="stat"><span id="moves">Moves 0</span><span id="rew" hidden></span></div>
   </div>
-  <div id="menu" hidden><label><input type="checkbox" id="optLeft"> Stock on the left</label></div>
+  <div id="menu" hidden><label><input type="checkbox" id="optLeft"> Stock on the left</label><label><input type="checkbox" id="optEmpty"> Deal even with empty columns</label></div>
   <div id="toast" hidden></div>
   <div id="win" hidden><h2>All eight suits home</h2><p id="winMsg"></p><button class="btn" id="bAgain" type="button">Deal again</button></div>
 </div></div>
@@ -84,7 +85,7 @@ const board=document.getElementById('board');
 const RANK=['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 const rk=n=>((n>>1)%13)+1, up=n=>(n&1)===1, cid=n=>n>>1;
 const KEY='nightspider.game.v1', KEY_OPT='nightspider.opts.v1';
-let S=null, busy=false, stockLeft=false, L=null, loc={}, els=[], slots=[], stockSlot=null, hintTimer=null, newArm=null, toastTimer=null;
+let S=null, busy=false, stockLeft=false, allowEmpty=false, L=null, loc={}, els=[], slots=[], stockSlot=null, hintTimer=null, newArm=null, toastTimer=null;
 
 function store(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 function fetchKey(k){try{const t=localStorage.getItem(k);return t?JSON.parse(t):null}catch(e){return null}}
@@ -128,7 +129,7 @@ function settle(wait){
 }
 function winFly(){
   render({fly:true});
-  setTimeout(()=>{busy=false;showWin()},104*36+760);
+  setTimeout(()=>{busy=false;showWin()},104*15+700);
 }
 function showWin(){
   document.getElementById('winMsg').textContent='Won in '+S.moves+' moves'+(S.resets?' · rewound '+S.resets+(S.resets===1?' time':' times'):'');
@@ -139,12 +140,12 @@ function deal(){
   if(busy||S.won)return;
   if(!S.stock.length)return;
   const empty=S.cols.map((a,c)=>a.length?-1:c).filter(c=>c>=0);
-  if(empty.length){empty.forEach(c=>nope(slots[c]));toast('Fill the empty columns before dealing');return}
+  if(empty.length&&!allowEmpty){empty.forEach(c=>nope(slots[c]));toast('Fill the empty columns before dealing');return}
   S.hist.push(snap());
   const delays={};
-  for(let c=0;c<10;c++){const n=S.stock.pop()|1;S.cols[c].push(n);delays[cid(n)]=c*90}
+  for(let c=0;c<10;c++){const n=S.stock.pop()|1;S.cols[c].push(n);delays[cid(n)]=c*63}
   S.moves++;
-  render({delays});settle(1400);
+  render({delays});settle(1000);
 }
 function undo(){
   if(busy||S.won||!S.hist.length)return;
@@ -165,8 +166,8 @@ function dealAnim(){
   // gather everything at the stock, then deal out
   board.classList.add('still');render({gather:true});void board.offsetWidth;board.classList.remove('still');
   const delays={};let k=0;
-  for(let r=0;r<6;r++)for(let c=0;c<10;c++){const a=S.cols[c];if(r<a.length)delays[cid(a[r])]=(k++)*28}
-  busy=true;render({delays});setTimeout(()=>{busy=false},54*28+600);
+  for(let r=0;r<6;r++)for(let c=0;c<10;c++){const a=S.cols[c];if(r<a.length)delays[cid(a[r])]=(k++)*20}
+  busy=true;render({delays});setTimeout(()=>{busy=false},54*20+450);
 }
 
 function tapCard(c,i){
@@ -299,9 +300,9 @@ function render(opt={}){
   S.found.forEach((arr,s)=>{
     arr.forEach((n,k)=>{
       if(opt.fly||opt.gather){
-        const e=els[cid(n)];e.style.transitionDuration='.64s';
+        const e=els[cid(n)];e.style.transitionDuration='.5s';
         setCard(n,stockEdge,0,20+s*13+k,null,true);
-        if(opt.fly)e.style.transitionDelay=((s*13+k)*36)+'ms';
+        if(opt.fly)e.style.transitionDelay=((s*13+k)*15)+'ms';
       }else setCard(n,foundX(s),0,10+s*20+(13-k),{w:'found'});
     });
   });
@@ -313,8 +314,55 @@ function render(opt={}){
   els.forEach((e,i)=>{if(!opt.fly&&!opt.gather)e.style.transitionDuration=''});
   document.getElementById('moves').textContent='Moves '+S.moves;
   const rew=document.getElementById('rew');rew.hidden=!S.resets;rew.textContent='↺ Rewound'+(S.resets>1?' ×'+S.resets:'');
+  updateComplete();
   document.getElementById('bUndo').disabled=false;
 }
+
+// ---- Complete: once everything is dealt and every column is one run, finish the game automatically ----
+let auto=false, solKey='', sol=null;
+function canComplete(){return !S.won&&!S.stock.length&&S.found.length<8&&S.cols.every((a,c)=>a.every(up)&&(!a.length||runLen(c)===a.length))}
+function solve(){
+  const key=cs=>cs.map(a=>a.join(',')).join('|');
+  const seen=new Set(),path=[];let steps=0;
+  const dfs=cs=>{
+    if(cs.every(a=>!a.length))return true;
+    if(++steps>20000)return false;
+    const k=key(cs);if(seen.has(k))return false;seen.add(k);
+    const moves=[],empty=cs.findIndex(a=>!a.length);
+    cs.forEach((a,f)=>{for(let i=0;i<a.length;i++){const r=a[i];
+      cs.forEach((b,t)=>{if(t!==f&&b.length&&b[b.length-1]===r+1)moves.push({f,i,t,pr:(b[0]===13&&b.length+a.length-i===13)?0:(i===0?1:2)})});
+      if(i>0&&empty>=0)moves.push({f,i,t:empty,pr:3});
+    }});
+    moves.sort((x,y)=>x.pr-y.pr);
+    for(const m of moves){
+      const n=cs.map(a=>a.slice());n[m.t].push(...n[m.f].splice(m.i));
+      if(n[m.t].length===13&&n[m.t][0]===13)n[m.t]=[];
+      path.push(m);if(dfs(n))return true;path.pop();
+    }
+    return false;
+  };
+  return dfs(S.cols.map(a=>a.map(rk)))?path.slice():null;
+}
+function updateComplete(){
+  const b=document.getElementById('bDone');
+  if(auto||!canComplete()){b.hidden=true;return}
+  const k=JSON.stringify(S.cols);
+  if(k!==solKey){solKey=k;sol=solve()}
+  b.hidden=!sol;
+}
+function autoComplete(){
+  if(!sol||busy||auto)return;
+  stopHints();auto=true;document.getElementById('bDone').hidden=true;
+  const seq=sol;let idx=0;
+  const run=()=>{
+    if(busy){setTimeout(run,80);return}
+    if(S.won||idx>=seq.length){auto=false;render();return}
+    const m=seq[idx++];doMove(m.f,m.i,m.t);setTimeout(run,560);
+  };
+  run();
+}
+// While it plays itself, ignore touches and buttons.
+['pointerdown','click'].forEach(ev=>document.addEventListener(ev,e=>{if(auto){e.stopPropagation();e.preventDefault()}},true));
 
 // ---- touch: tap to auto-move, drag to place ----
 let P=null;
@@ -370,12 +418,15 @@ document.getElementById('bNew').onclick=()=>{
   newArm=setTimeout(()=>{newArm=null;b.textContent='New';b.classList.remove('warn')},3000);
 };
 document.getElementById('bMenu').onclick=()=>{const m=document.getElementById('menu');m.hidden=!m.hidden};
-document.getElementById('optLeft').onchange=e=>{stockLeft=e.target.checked;store(KEY_OPT,{stockLeft});render()};
+document.getElementById('optLeft').onchange=e=>{stockLeft=e.target.checked;store(KEY_OPT,{stockLeft,allowEmpty});render()};
+document.getElementById('optEmpty').onchange=e=>{allowEmpty=e.target.checked;store(KEY_OPT,{stockLeft,allowEmpty})};
+document.getElementById('bDone').onclick=autoComplete;
 window.addEventListener('resize',()=>{board.classList.add('still');render(S.won?{fly:true}:{});requestAnimationFrame(()=>board.classList.remove('still'))});
 
 function start(data){
-  const o=fetchKey(KEY_OPT);stockLeft=!!(o&&o.stockLeft);
+  const o=fetchKey(KEY_OPT);stockLeft=!!(o&&o.stockLeft);allowEmpty=!!(o&&o.allowEmpty);
   document.getElementById('optLeft').checked=stockLeft;
+  document.getElementById('optEmpty').checked=allowEmpty;
   build();
   S=(data&&data.S)||fetchKey(KEY);
   if(S&&S.cols&&S.cols.length===10){
