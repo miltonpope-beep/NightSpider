@@ -41,8 +41,9 @@ body{height:100%;margin:0;background:radial-gradient(ellipse at 50% 35%,var(--fe
 .card.nope,.slot.nope{animation:nope .28s}
 @keyframes nope{25%{translate:-4px 0}75%{translate:4px 0}}
 
-#bar{position:absolute;left:0;right:0;bottom:0;height:44px;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:16px;flex-wrap:nowrap}
-.row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+#bar{position:absolute;left:0;right:0;bottom:0;height:44px;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:16px;flex-wrap:nowrap}
+.row{display:flex;gap:8px;flex-wrap:nowrap;align-items:center}
+#bar .stat{margin-left:8px}
 .btn{font:600 13px/1 var(--f-ui);letter-spacing:.02em;color:var(--muted);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:8px;padding:9px 13px;min-height:36px;cursor:pointer}
 .btn:active{background:rgba(255,255,255,.1)}
 .btn:focus-visible{outline:2px solid var(--glow);outline-offset:2px}
@@ -51,7 +52,7 @@ body{height:100%;margin:0;background:radial-gradient(ellipse at 50% 35%,var(--fe
 .btn.on{color:var(--glow)}
 .stat{font:500 12px/1 var(--f-ui);font-variant-numeric:tabular-nums;letter-spacing:.06em;text-transform:uppercase;opacity:.8;display:flex;gap:10px;align-items:center}
 #rew{color:var(--glow)}
-#menu{position:absolute;bottom:50px;right:0;display:flex;flex-direction:column;gap:12px;background:#18241f;border:1px solid var(--line);border-radius:10px;padding:12px 14px;z-index:5000;font-size:14px;color:var(--muted)}
+#menu{position:absolute;bottom:50px;display:flex;flex-direction:column;gap:12px;background:#18241f;border:1px solid var(--line);border-radius:10px;padding:12px 14px;z-index:5000;font-size:14px;color:var(--muted)}
 #menu label{display:flex;gap:10px;align-items:center;cursor:pointer}
 #toast{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);background:rgba(10,18,15,.9);border:1px solid var(--line);color:var(--muted);padding:10px 16px;border-radius:10px;font-size:14px;z-index:6000;pointer-events:none;transition:opacity .3s}
 #win{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);text-align:center;z-index:6000;display:flex;flex-direction:column;gap:12px;align-items:center}
@@ -67,16 +68,18 @@ body{height:100%;margin:0;background:radial-gradient(ellipse at 50% 35%,var(--fe
 <div id="app"><div id="board">
   <div id="bar">
     <div class="row">
-      <button class="btn" id="bUndo" type="button">Undo</button>
-      <button class="btn" id="bHint" type="button">Hint</button>
-      <button class="btn" id="bRew" type="button" style="margin-left:150px">Rewind</button>
+      <button class="btn" id="bRew" type="button">Rewind</button>
       <button class="btn" id="bNew" type="button">New</button>
       <button class="btn" id="bMenu" type="button" aria-label="Settings">⋯</button>
-      <button class="btn warn" id="bDone" type="button" hidden>Complete</button>
+      <div class="stat"><span id="moves">Moves 0</span><span id="rew" hidden></span></div>
     </div>
-    <div class="stat"><span id="moves">Moves 0</span><span id="rew" hidden></span></div>
+    <div class="row">
+      <button class="btn warn" id="bDone" type="button" hidden>Complete</button>
+      <button class="btn" id="bHint" type="button">Hint</button>
+      <button class="btn" id="bUndo" type="button">Undo</button>
+    </div>
   </div>
-  <div id="menu" hidden><label><input type="checkbox" id="optLeft"> Stock on the left</label><label><input type="checkbox" id="optEmpty"> Deal even with empty columns</label></div>
+  <div id="menu" hidden><label hidden><input type="checkbox" id="optLeft"> Stock on the left</label><label><input type="checkbox" id="optEmpty"> Deal even with empty columns</label></div>
   <div id="toast" hidden></div>
   <div id="win" hidden><h2>All eight suits home</h2><p id="winMsg"></p><button class="btn" id="bAgain" type="button">Deal again</button></div>
 </div></div>
@@ -314,6 +317,10 @@ function render(opt={}){
     setCard(n,stockEdge+dir*p*L.off,0,30+i,{w:'stock'});
   });
   els.forEach((e,i)=>{if(!opt.fly&&!opt.gather)e.style.transitionDuration=''});
+  // bottom bar spans exactly the ten columns
+  const bar=document.getElementById('bar');
+  bar.style.left=L.x0+'px';bar.style.right=(L.W-(L.x0+L.span))+'px';
+  document.getElementById('menu').style.left=L.x0+'px';
   document.getElementById('moves').textContent='Moves '+S.moves;
   const rew=document.getElementById('rew');rew.hidden=!S.resets;rew.textContent='↺ Rewound'+(S.resets>1?' ×'+S.resets:'');
   updateComplete();
@@ -426,7 +433,7 @@ document.getElementById('bDone').onclick=autoComplete;
 window.addEventListener('resize',()=>{board.classList.add('still');render(S.won?{fly:true}:{});requestAnimationFrame(()=>board.classList.remove('still'))});
 
 function start(data){
-  const o=fetchKey(KEY_OPT);stockLeft=!!(o&&o.stockLeft);allowEmpty=!!(o&&o.allowEmpty);
+  const o=fetchKey(KEY_OPT);stockLeft=false;allowEmpty=!!(o&&o.allowEmpty);
   document.getElementById('optLeft').checked=stockLeft;
   document.getElementById('optEmpty').checked=allowEmpty;
   build();

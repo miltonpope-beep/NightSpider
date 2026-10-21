@@ -1,7 +1,7 @@
 // Keeps Night Spider working offline. Pages come from the network when it is
 // available (bypassing the browser's short-term cache, so updates show up
 // right away) and from the saved copy when it is not.
-const CACHE='night-spider-v5';
+const CACHE='night-spider-v6';
 const FILES=['./','index.html','manifest.json','icon-192.png','icon-512.png',
  'fonts/crimson-pro-latin-600-normal.woff2','fonts/crimson-pro-latin-700-normal.woff2',
  'fonts/karla-latin-500-normal.woff2','fonts/karla-latin-600-normal.woff2','fonts/karla-latin-700-normal.woff2'];
