@@ -10,6 +10,7 @@
 <style>
 @font-face{font-family:"Crimson Pro";font-weight:600;font-style:normal;font-display:swap;src:url(fonts/crimson-pro-latin-600-normal.woff2) format("woff2")}
 @font-face{font-family:"Crimson Pro";font-weight:700;font-style:normal;font-display:swap;src:url(fonts/crimson-pro-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Crimson Pro";font-weight:800;font-style:normal;font-display:swap;src:url(fonts/crimson-pro-latin-800-normal.woff2) format("woff2")}
 @font-face{font-family:"Karla";font-weight:500;font-style:normal;font-display:swap;src:url(fonts/karla-latin-500-normal.woff2) format("woff2")}
 @font-face{font-family:"Karla";font-weight:600;font-style:normal;font-display:swap;src:url(fonts/karla-latin-600-normal.woff2) format("woff2")}
 @font-face{font-family:"Karla";font-weight:700;font-style:normal;font-display:swap;src:url(fonts/karla-latin-700-normal.woff2) format("woff2")}
@@ -31,7 +32,7 @@ body{height:100%;margin:0;background:radial-gradient(ellipse at 50% 35%,var(--fe
 
 .slot{position:absolute;width:var(--cw);height:var(--ch);border-radius:calc(var(--cw)*.08);border:1px dashed var(--line)}
 .card{position:absolute;left:0;top:0;width:var(--cw);height:var(--ch);border-radius:calc(var(--cw)*.08);background:var(--paper);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.5),inset 0 0 0 1px rgba(0,0,0,.12);transition:left .44s ease,top .44s ease,box-shadow .2s,filter .2s;overflow:hidden}
-.card .r{position:absolute;top:calc(var(--cw)*.015);left:calc(var(--cw)*.05);font:700 calc(var(--cw)*.28)/1 var(--f-rank);letter-spacing:-.03em}
+.card .r{position:absolute;top:calc(var(--cw)*.01);left:calc(var(--cw)*.05);font:800 calc(var(--cw)*.34)/1 var(--f-rank);letter-spacing:-.04em}
 .card .s{position:absolute;top:calc(var(--cw)*.03);right:calc(var(--cw)*.05);font-size:calc(var(--cw)*.21);line-height:1}
 .card .pip{position:absolute;left:50%;top:60%;transform:translate(-50%,-50%);font-size:calc(var(--cw)*.6);line-height:1;opacity:.8}
 .card.down{background:var(--back);background-image:repeating-linear-gradient(45deg,transparent 0 5px,var(--back-line) 5px 10px);box-shadow:0 -1px 0 rgba(0,0,0,.55),0 1px 2px rgba(0,0,0,.5),inset 0 0 0 2px var(--paper),inset 0 0 0 3px rgba(0,0,0,.35)}
@@ -255,7 +256,7 @@ function build(){
 function layout(){
   const W=board.clientWidth,H=board.clientHeight-50;
   const gap=Math.max(4,W*.008);
-  let cw=(W-gap*13)/14,ch=cw*1.4;
+  let cw=(W-gap*11.5)/12.5,ch=cw*1.4;
   const maxCh=H*.3;if(ch>maxCh){ch=maxCh;cw=ch/1.4}
   const span=cw*10+gap*9,x0=(W-span)/2;
   return {W,H,gap,cw,ch,x0,span,colY:ch+gap*2.5,off:cw*.22};
@@ -282,7 +283,7 @@ function render(opt={}){
   // columns
   S.cols.forEach((a,c)=>{
     const x=L.x0+c*(L.cw+L.gap);
-    const dOff=L.ch*.13,uOff=L.ch*.25;
+    const dOff=L.ch*.13,uOff=L.ch*.31;
     // The exposed run keeps full spacing; everything behind it squeezes first.
     const base=a.length?a.length-runLen(c):0;
     let behind=0;for(let i=0;i<base;i++)behind+=up(a[i])?uOff:dOff;
