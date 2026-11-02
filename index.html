@@ -59,6 +59,13 @@ body{height:100%;margin:0;background:radial-gradient(ellipse at 50% 35%,var(--fe
 #win{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);text-align:center;z-index:6000;display:flex;flex-direction:column;gap:12px;align-items:center}
 #win h2{margin:0;font:600 30px/1.1 var(--f-rank);color:var(--paper);opacity:.85;text-wrap:balance}
 #win p{margin:0;font-size:14px}
+#menu input[type=range]{width:160px;accent-color:var(--glow)}
+#clock{position:fixed;inset:0;background:#000;z-index:9000;display:flex;flex-direction:column;align-items:center;justify-content:center;touch-action:none;user-select:none;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#clockFace{display:flex;flex-direction:column;align-items:center;gap:14px;color:#e9dcc0}
+#clockTime{font:500 min(26vw,62vh)/1 var(--f-ui);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+#clockHint{font:500 13px/1.3 var(--f-ui);letter-spacing:.04em;transition:opacity 1.2s}
+#clockVolRow{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;font:500 12px/1 var(--f-ui);letter-spacing:.06em;text-transform:uppercase;color:#e9dcc0}
+#clockVolRow input{width:220px;accent-color:#8a7a5c}
 @media (prefers-reduced-motion:reduce){.card{transition-duration:.05s}}
 </style>
 <style>html,body{margin:0}[hidden]{display:none!important}</style>
@@ -75,15 +82,20 @@ body{height:100%;margin:0;background:radial-gradient(ellipse at 50% 35%,var(--fe
       <div class="stat"><span id="moves">Moves 0</span><span id="rew" hidden></span></div>
     </div>
     <div class="row">
+      <button class="btn" id="bClock" type="button" style="margin-right:32px">Clock</button>
       <button class="btn warn" id="bDone" type="button" hidden>Complete</button>
       <button class="btn" id="bHint" type="button">Hint</button>
       <button class="btn" id="bUndo" type="button">Undo</button>
     </div>
   </div>
-  <div id="menu" hidden><label hidden><input type="checkbox" id="optLeft"> Stock on the left</label><label><input type="checkbox" id="optEmpty"> Deal even with empty columns</label></div>
+  <div id="menu" hidden><label hidden><input type="checkbox" id="optLeft"> Stock on the left</label><label><input type="checkbox" id="optEmpty"> Deal even with empty columns</label><label><input type="checkbox" id="optRain"> Heavy rain</label><label>Volume <input type="range" id="optVol" min="0" max="100"></label></div>
   <div id="toast" hidden></div>
   <div id="win" hidden><h2>All eight suits home</h2><p id="winMsg"></p><button class="btn" id="bAgain" type="button">Deal again</button></div>
 </div></div>
+<div id="clock" hidden>
+  <div id="clockFace"><div id="clockTime">12:00</div><div id="clockHint">Swipe down to dim, up to brighten · double-tap to return</div></div>
+  <div id="clockVolRow"><span>Rain</span><input type="range" id="clockVol" min="0" max="100" aria-label="Rain volume"></div>
+</div>
 
 <script>
 (function(){
@@ -428,15 +440,117 @@ document.getElementById('bNew').onclick=()=>{
   newArm=setTimeout(()=>{newArm=null;b.textContent='New';b.classList.remove('warn')},3000);
 };
 document.getElementById('bMenu').onclick=()=>{const m=document.getElementById('menu');m.hidden=!m.hidden};
-document.getElementById('optLeft').onchange=e=>{stockLeft=e.target.checked;store(KEY_OPT,{stockLeft,allowEmpty});render()};
-document.getElementById('optEmpty').onchange=e=>{allowEmpty=e.target.checked;store(KEY_OPT,{stockLeft,allowEmpty})};
+// ---- options ----
+const opts={allowEmpty:false,rain:false,vol:60,dim:.5};
+function saveOpts(){opts.allowEmpty=allowEmpty;store(KEY_OPT,opts)}
+
+// ---- heavy rain: generated on the phone from filtered noise, no recordings ----
+let actx=null,master=null,rainOn=false;
+function loopBuf(sec,gen){
+  // each layer is a long loop whose end is crossfaded into its start, so there is no seam
+  const sr=actx.sampleRate,n=Math.floor(sec*sr),F=Math.floor(.5*sr);
+  const b=actx.createBuffer(2,n,sr);
+  for(let c=0;c<2;c++){
+    const raw=new Float32Array(n+F);gen(raw,sr);
+    const d=b.getChannelData(c);
+    for(let i=0;i<n;i++)d[i]=raw[i];
+    for(let i=0;i<F;i++){const t=i/F;d[i]=raw[n+i]*(1-t)+raw[i]*t}
+  }
+  return b;
+}
+const white=a=>{for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1};
+const pink=a=>{let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;for(let i=0;i<a.length;i++){const w=Math.random()*2-1;b0=.99886*b0+w*.0555179;b1=.99332*b1+w*.0750759;b2=.969*b2+w*.153852;b3=.8665*b3+w*.3104856;b4=.55*b4+w*.5329522;b5=-.7616*b5-w*.016898;a[i]=(b0+b1+b2+b3+b4+b5+b6+w*.5362)*.11;b6=w*.115926}};
+const brown=a=>{let l=0;for(let i=0;i<a.length;i++){l=(l+.02*(Math.random()*2-1))/1.02;a[i]=l*3.5}};
+const drops=(a,sr)=>{const count=Math.floor(a.length/sr*380);for(let j=0;j<count;j++){const p=Math.floor(Math.random()*a.length),amp=Math.pow(.2+Math.random()*.8,2),len=Math.floor(sr*(.002+Math.random()*.006)),tau=len/4;for(let k=0;k<len&&p+k<a.length;k++)a[p+k]+=(Math.random()*2-1)*amp*Math.exp(-k/tau)}};
+function startRain(){
+  if(rainOn)return;
+  try{
+    if(!actx){
+      actx=new (window.AudioContext||window.webkitAudioContext)();
+      master=actx.createGain();master.gain.value=0;
+      const lim=actx.createDynamicsCompressor();lim.threshold.value=-6;lim.ratio.value=12;lim.attack.value=.003;lim.release.value=.25;
+      master.connect(lim);lim.connect(actx.destination);
+      const filt=(type,f,q)=>{const b=actx.createBiquadFilter();b.type=type;b.frequency.value=f;if(q)b.Q.value=q;return b};
+      const layer=(buf,nodes,g)=>{const s=actx.createBufferSource();s.buffer=buf;s.loop=true;let x=s;nodes.forEach(nd=>{x.connect(nd);x=nd});const gn=actx.createGain();gn.gain.value=g;x.connect(gn);gn.connect(master);s.start();return gn};
+      const body=layer(loopBuf(11,pink),[filt('lowpass',3000,.5),filt('highpass',150)],.9);
+      layer(loopBuf(13,white),[filt('bandpass',6000,.6)],.12);
+      layer(loopBuf(17,brown),[filt('lowpass',350)],.6);
+      layer(loopBuf(23,drops),[filt('highpass',1200),filt('lowpass',9000)],.35);
+      // slow swells, like gusts
+      const lfo=actx.createOscillator();lfo.frequency.value=.06;const lg=actx.createGain();lg.gain.value=.18;lfo.connect(lg);lg.connect(body.gain);lfo.start();
+    }
+    actx.resume();rainOn=true;setVol(3);
+  }catch(e){}
+}
+function stopRain(){rainOn=false;setVol(.8)}
+function setVol(sec){
+  if(!actx)return;
+  const v=rainOn?Math.pow(opts.vol/100,2)*.8:0,g=master.gain,t=actx.currentTime;
+  g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);g.linearRampToValueAtTime(v,t+sec);
+}
+// Phones only allow sound after a touch, so remembered rain starts with the first touch.
+document.addEventListener('pointerdown',()=>{if(opts.rain&&!rainOn)startRain()},true);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible')return;
+  if(rainOn&&actx)actx.resume();
+  if(!clockEl.hidden)lockScreen();
+});
+
+// ---- clock: full screen, dim by swiping down ----
+const clockEl=document.getElementById('clock');
+let wake=null,clockTimer=null,hintFade=null,CP=null,lastTap=0;
+function drawClock(){const d=new Date();document.getElementById('clockTime').textContent=(d.getHours()%12||12)+':'+String(d.getMinutes()).padStart(2,'0')}
+function applyDim(){document.getElementById('clockFace').style.opacity=String(opts.dim);document.getElementById('clockVolRow').style.opacity=String(Math.min(opts.dim,.6))}
+async function lockScreen(){try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen')}catch(e){}}
+function openClock(){
+  stopHints();document.getElementById('menu').hidden=true;
+  drawClock();applyDim();clockEl.hidden=false;
+  document.getElementById('clockVolRow').hidden=!rainOn;
+  document.getElementById('clockVol').value=opts.vol;
+  const hint=document.getElementById('clockHint');hint.style.opacity='1';
+  clearTimeout(hintFade);hintFade=setTimeout(()=>{hint.style.opacity='0'},4000);
+  clearInterval(clockTimer);clockTimer=setInterval(drawClock,5000);
+  lockScreen();
+}
+function closeClock(){
+  clockEl.hidden=true;clearInterval(clockTimer);
+  try{if(wake)wake.release()}catch(e){}wake=null;saveOpts();
+}
+clockEl.addEventListener('pointerdown',e=>{
+  if(e.target.closest('input'))return;
+  CP={x:e.clientX,y:e.clientY,d:opts.dim,moved:false};
+  try{clockEl.setPointerCapture(e.pointerId)}catch(err){}
+});
+clockEl.addEventListener('pointermove',e=>{
+  if(!CP)return;
+  const dy=e.clientY-CP.y;
+  if(Math.abs(dy)>8||Math.abs(e.clientX-CP.x)>8)CP.moved=true;
+  if(!CP.moved)return;
+  opts.dim=Math.max(.02,Math.min(1,CP.d-dy/(innerHeight*.8)));applyDim();
+});
+clockEl.addEventListener('pointerup',()=>{
+  if(!CP)return;const moved=CP.moved;CP=null;
+  if(moved){saveOpts();return}
+  const now=Date.now();
+  if(now-lastTap<400){lastTap=0;closeClock()}else lastTap=now;
+});
+function volFrom(el){opts.vol=+el.value;document.getElementById('optVol').value=opts.vol;document.getElementById('clockVol').value=opts.vol;setVol(.15)}
+document.getElementById('clockVol').addEventListener('input',e=>volFrom(e.target));
+document.getElementById('clockVol').addEventListener('change',saveOpts);
+document.getElementById('optVol').addEventListener('input',e=>volFrom(e.target));
+document.getElementById('optVol').addEventListener('change',saveOpts);
+document.getElementById('optRain').onchange=e=>{opts.rain=e.target.checked;opts.rain?startRain():stopRain();saveOpts()};
+document.getElementById('bClock').onclick=openClock;
+document.getElementById('optEmpty').onchange=e=>{allowEmpty=e.target.checked;saveOpts()};
 document.getElementById('bDone').onclick=autoComplete;
 window.addEventListener('resize',()=>{board.classList.add('still');render(S.won?{fly:true}:{});requestAnimationFrame(()=>board.classList.remove('still'))});
 
 function start(data){
-  const o=fetchKey(KEY_OPT);stockLeft=false;allowEmpty=!!(o&&o.allowEmpty);
-  document.getElementById('optLeft').checked=stockLeft;
+  Object.assign(opts,fetchKey(KEY_OPT)||{});
+  stockLeft=false;allowEmpty=!!opts.allowEmpty;
   document.getElementById('optEmpty').checked=allowEmpty;
+  document.getElementById('optRain').checked=!!opts.rain;
+  document.getElementById('optVol').value=opts.vol;
   build();
   S=(data&&data.S)||fetchKey(KEY);
   if(S&&S.cols&&S.cols.length===10){
